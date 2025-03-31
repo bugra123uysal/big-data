@@ -10,12 +10,16 @@ Original file is located at
 from pyspark.sql import SparkSession
 from pyspark.sql.functions import col, isnan, when, count
 import pandas as pd
-from pyspark.sql.functions import split, unix_timestamp
+from pyspark.sql.functions import split, unix_timestamp,when, col
 from datetime import time
 
 spark=SparkSession.builder.appName("first big data").getOrCreate()
 
 df_sp=spark.read.csv("/content/sample_data/yellow_tripdata_2015-01.csv",header=True, inferSchema=True)
+
+df_sp.describe().show(5)
+
+df_sp.summary().show(5)
 
 """# Yeni Bölüm"""
 
@@ -42,6 +46,15 @@ sıra.show(5)
 passenger=df_sp.orderBy(df_sp['passenger_count'], ascending=False)
 passenger.show(5)
 
+tip=df_sp.select('tip_amount', 'passenger_count')
+tip.show(5)
+
+odemey=df_sp.select("payment_type")
+odemey.show(5)
+
+gecıs=df_sp.orderBy(df_sp['tolls_amount'], ascending=False)
+gecıs.show(5)
+
 df_sp = df_sp.withColumn("time", split(df_sp["tpep_pickup_datetime"], " ")[1])\
              .withColumn("timee", split(df_sp["tpep_dropoff_datetime"], " ")[1])
 
@@ -51,16 +64,10 @@ df_sp = df_sp.withColumn("time_different_minute",
 
 
 df_sp.select("tpep_pickup_datetime", "tpep_dropoff_datetime", "time_different_minute")
+
+df_sp=df_sp.withColumn("fare_fiferent_minute", col("fare_amount") / col("time_different_minute"))
+df_sp=df_sp.withColumn("fare_trip_dsac", col("fare_amount") / col("trip_distance"))
 df_sp.show(5)
-
-tip=df_sp.select('tip_amount', 'passenger_count')
-tip.show(5)
-
-odemey=df_sp.olderBy(df_sp['payment_type'], ascending=False)
-odemey.show(5)
-
-gecıs=df_sp.orderBy(df_sp['tolls_amount'], ascending=False)
-gecıs.show(5)
 
 from google.colab import drive
 drive.mount('/content/drive')
