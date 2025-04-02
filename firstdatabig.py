@@ -10,16 +10,18 @@ Original file is located at
 from pyspark.sql import SparkSession
 from pyspark.sql.functions import col, isnan, when, count
 import pandas as pd
-from pyspark.sql.functions import split, unix_timestamp,when, col
+from pyspark.sql.functions import split, unix_timestamp,when, col, sum
 from datetime import time
+from keplergl import KeplerGl
+import plotly.express as px
 
 spark=SparkSession.builder.appName("first big data").getOrCreate()
 
 df_sp=spark.read.csv("/content/sample_data/yellow_tripdata_2015-01.csv",header=True, inferSchema=True)
 
-df_sp.describe().show(5)
+df_sp.select([sum(col(c).isNull().cast("int")).alias(c) for c in df_sp.columns]).show()
 
-df_sp.summary().show(5)
+df_sp.summary().show()
 
 """# Yeni Bölüm"""
 
@@ -34,13 +36,13 @@ df_sp.summary().show()
 select=df_sp.select('fare_amount','total_amount')
 select.show(5)
 
-flr=df_sp.filter(df_sp['total_amount']<2)
+flr=df_sp.filter(df_sp['total_amount']<2  )
 flr.show(5)
 
 bahsıs=df_sp.orderBy(df_sp['tip_amount'], ascending=False)
 bahsıs.show(5)
 
-sıra=df_sp.orderBy(df_sp['tip_amount'], ascending=True)
+sıra=df_sp.orderBy(df_sp['tip_amount'], ascending=False)
 sıra.show(5)
 
 passenger=df_sp.orderBy(df_sp['passenger_count'], ascending=False)
@@ -55,7 +57,7 @@ odemey.show(5)
 gecıs=df_sp.orderBy(df_sp['tolls_amount'], ascending=False)
 gecıs.show(5)
 
-df_sp = df_sp.withColumn("time", split(df_sp["tpep_pickup_datetime"], " ")[1])\
+df_sp =df_sp.withColumn("time", split(df_sp["tpep_pickup_datetime"], " ")[1])\
              .withColumn("timee", split(df_sp["tpep_dropoff_datetime"], " ")[1])
 
 df_sp = df_sp.withColumn("time_different_minute",
@@ -65,9 +67,27 @@ df_sp = df_sp.withColumn("time_different_minute",
 
 df_sp.select("tpep_pickup_datetime", "tpep_dropoff_datetime", "time_different_minute")
 
-df_sp=df_sp.withColumn("fare_fiferent_minute", col("fare_amount") / col("time_different_minute"))
-df_sp=df_sp.withColumn("fare_trip_dsac", col("fare_amount") / col("trip_distance"))
+df_sp=df_sp.withColumn("fare_per_minute", col("fare_amount") / col("time_different_minute"))
+df_sp=df_sp.withColumn("fare_per_km", col("fare_amount") / col("trip_distance"))
 df_sp.show(5)
+
+df_sp=df_sp.toPandas().to_csv("updated_dataset.csv", index=False)
+from google.colab import files
+files.download("updated_dataset.csv")
+
+count_t=df_sp.groupBy("payment_type").count().toPandas()
+
+fig=px.bar(count_t,x="payment_type" , y="count", title="payment")
+fig.show()
+
+count_p=df_sp.groupBy("passenger_count").count().toPandas()
+
+fig=px.bar(count_p, x="passenger_count", y="count", title="passenger ")
+fig.show()
+
+count_s=df_sp.groupBy("store_and_fwd_flag").count().toPandas()
+fig=px.bar(count_s,x="store_and_fwd_flag", y="count" ,title="strove count" )
+fig.show()
 
 from google.colab import drive
 drive.mount('/content/drive')
