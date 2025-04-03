@@ -10,14 +10,14 @@ Original file is located at
 from pyspark.sql import SparkSession
 from pyspark.sql.functions import col, isnan, when, count
 import pandas as pd
-from pyspark.sql.functions import split, unix_timestamp,when, col, sum
+from pyspark.sql.functions import split, unix_timestamp,when, col, sum ,year, month, dayofweek, hour
 from datetime import time
-from keplergl import KeplerGl
+
 import plotly.express as px
 
 spark=SparkSession.builder.appName("first big data").getOrCreate()
 
-df_sp=spark.read.csv("/content/sample_data/yellow_tripdata_2015-01.csv",header=True, inferSchema=True)
+df_sp=spark.read.csv("/content/yellow_tripdata_2015-01.csv",header=True, inferSchema=True)
 
 df_sp.select([sum(col(c).isNull().cast("int")).alias(c) for c in df_sp.columns]).show()
 
@@ -57,6 +57,9 @@ odemey.show(5)
 gecıs=df_sp.orderBy(df_sp['tolls_amount'], ascending=False)
 gecıs.show(5)
 
+df_sp=df_sp.filter(df_sp["passenger_count"]> 0 )
+df_sp.show(10)
+
 df_sp =df_sp.withColumn("time", split(df_sp["tpep_pickup_datetime"], " ")[1])\
              .withColumn("timee", split(df_sp["tpep_dropoff_datetime"], " ")[1])
 
@@ -74,6 +77,25 @@ df_sp.show(5)
 df_sp=df_sp.toPandas().to_csv("updated_dataset.csv", index=False)
 from google.colab import files
 files.download("updated_dataset.csv")
+
+df_sp=df_sp.withColumn("year_d", year(df_sp["tpep_dropoff_datetime"]))
+df_sp=df_sp.withColumn("month_d", month(df_sp["tpep_dropoff_datetime"]))
+df_sp=df_sp.withColumn("hour_d", hour(df_sp["tpep_dropoff_datetime"]))
+df_sp=df_sp.withColumn("dayofweek_d", dayofweek(df_sp["tpep_dropoff_datetime"]))
+
+
+count_d=df_sp.groupBy("hour-d").count().toPandas()
+fig=px.bar(count_d, x="hour-d", y="count", title="hours (tpep_dropoff_datetime)")
+fig.show()
+
+df_sp=df_sp.withColumn("year", year(df_sp["tpep_pickup_datetime"]))
+df_sp=df_sp.withColumn("month", month(df_sp["tpep_pickup_datetime"]))
+df_sp=df_sp.withColumn("hour", hour(df_sp["tpep_pickup_datetime"]))
+df_sp=df_sp.withColumn("dayofweek", dayofweek(df_sp["tpep_pickup_datetime"]))
+
+ccoo=df_sp.groupBy=("hour").count().toPandas()
+fig=px.bar(ccoo , x="hour", y="count", title="hourse ,(tpep_pickup_datetime)")
+fig.show()
 
 count_t=df_sp.groupBy("payment_type").count().toPandas()
 
