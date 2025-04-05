@@ -17,7 +17,7 @@ import plotly.express as px
 
 spark=SparkSession.builder.appName("first big data").getOrCreate()
 
-df_sp=spark.read.csv("/content/yellow_tripdata_2015-01.csv",header=True, inferSchema=True)
+df_sp=spark.read.csv("/content/sample_data/yellow_tripdata_2015-01.csv",header=True, inferSchema=True)
 
 df_sp.select([sum(col(c).isNull().cast("int")).alias(c) for c in df_sp.columns]).show()
 
@@ -78,23 +78,56 @@ df_sp=df_sp.toPandas().to_csv("updated_dataset.csv", index=False)
 from google.colab import files
 files.download("updated_dataset.csv")
 
+df_sp=df_sp.withColumn("year", year(df_sp["tpep_pickup_datetime"]))
+df_sp=df_sp.withColumn("month", month(df_sp["tpep_pickup_datetime"]))
+df_sp=df_sp.withColumn("hour", hour(df_sp["tpep_pickup_datetime"]))
+df_sp=df_sp.withColumn("dayofweek", dayofweek(df_sp["tpep_pickup_datetime"]))
+df_sp.show(5)
+
+ccoo=df_sp.groupBy("hour").count().toPandas()
+fig=px.bar(ccoo , x="hour", y="count", title="hourse ,(tpep_pickup_datetime)")
+fig.show()
+
+df_sp=df_sp.withColumn("payment",
+                       when(df_sp.payment_type == 1 , "cash")
+                    .when(df_sp.payment_type == 2 , "credid card")
+                    .otherwise("ı dont know")
+                    )
+
+df_sp.show(5)
+
+aa=df_sp.groupBy("payment").count().toPandas()
+fig=px.bar(aa, x="payment", y="count")
+fig.show()
+
+df_sp=df_sp.withColumn("day_name",
+                      when(df_sp.dayofweek == 1, "pazartesi")
+
+                    .when(df_sp.dayofweek == 2 , "salı")
+                    .when(df_sp.dayofweek ==  3, "çarşamba")
+                    .when(df_sp.dayofweek ==  4, "perşembe")
+                    .when(df_sp.dayofweek ==  5, "cuma")
+                    .when(df_sp.dayofweek ==  6, "cumartesi")
+                    .when(df_sp.dayofweek ==  7, "pazar")
+                    .otherwise("bilinmiyor")
+                    )
+
+df_sp.show(5)
+
+df_sp=df_sp.withColumn("dayofweek_d", dayofweek(df_sp["tpep_dropoff_datetime"]))
+
+aa=df_sp.groupBy("day_name").count().toPandas()
+fig=px.bar(aa, x="day_name", y="count", title="day_name")
+fig.show()
+
 df_sp=df_sp.withColumn("year_d", year(df_sp["tpep_dropoff_datetime"]))
 df_sp=df_sp.withColumn("month_d", month(df_sp["tpep_dropoff_datetime"]))
 df_sp=df_sp.withColumn("hour_d", hour(df_sp["tpep_dropoff_datetime"]))
 df_sp=df_sp.withColumn("dayofweek_d", dayofweek(df_sp["tpep_dropoff_datetime"]))
 
 
-count_d=df_sp.groupBy("hour-d").count().toPandas()
-fig=px.bar(count_d, x="hour-d", y="count", title="hours (tpep_dropoff_datetime)")
-fig.show()
-
-df_sp=df_sp.withColumn("year", year(df_sp["tpep_pickup_datetime"]))
-df_sp=df_sp.withColumn("month", month(df_sp["tpep_pickup_datetime"]))
-df_sp=df_sp.withColumn("hour", hour(df_sp["tpep_pickup_datetime"]))
-df_sp=df_sp.withColumn("dayofweek", dayofweek(df_sp["tpep_pickup_datetime"]))
-
-ccoo=df_sp.groupBy=("hour").count().toPandas()
-fig=px.bar(ccoo , x="hour", y="count", title="hourse ,(tpep_pickup_datetime)")
+count_d=df_sp.groupBy("hour_d").count().toPandas()
+fig=px.bar(count_d, x="hour_d", y="count", title="hours (tpep_dropoff_datetime)")
 fig.show()
 
 count_t=df_sp.groupBy("payment_type").count().toPandas()
