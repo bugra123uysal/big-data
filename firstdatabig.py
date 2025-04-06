@@ -12,12 +12,14 @@ from pyspark.sql.functions import col, isnan, when, count
 import pandas as pd
 from pyspark.sql.functions import split, unix_timestamp,when, col, sum ,year, month, dayofweek, hour
 from datetime import time
-
 import plotly.express as px
+
+from google.colab import files
+from keplergl import KeplerGl
 
 spark=SparkSession.builder.appName("first big data").getOrCreate()
 
-df_sp=spark.read.csv("/content/sample_data/yellow_tripdata_2015-01.csv",header=True, inferSchema=True)
+df_sp=spark.read.csv("/content/yellow_tripdata_2015-01.csv",header=True, inferSchema=True)
 
 df_sp.select([sum(col(c).isNull().cast("int")).alias(c) for c in df_sp.columns]).show()
 
@@ -101,8 +103,8 @@ fig=px.bar(aa, x="payment", y="count")
 fig.show()
 
 df_sp=df_sp.withColumn("day_name",
-                      when(df_sp.dayofweek == 1, "pazartesi")
 
+                       when(df_sp.dayofweek == 1, "pazartesi")
                     .when(df_sp.dayofweek == 2 , "salı")
                     .when(df_sp.dayofweek ==  3, "çarşamba")
                     .when(df_sp.dayofweek ==  4, "perşembe")
@@ -127,7 +129,7 @@ df_sp=df_sp.withColumn("dayofweek_d", dayofweek(df_sp["tpep_dropoff_datetime"]))
 
 
 count_d=df_sp.groupBy("hour_d").count().toPandas()
-fig=px.bar(count_d, x="hour_d", y="count", title="hours (tpep_dropoff_datetime)")
+fig=px.bar(count_d, x="hour_d", y="count", title="hours (tpep_dropoff_datetime)" )
 fig.show()
 
 count_t=df_sp.groupBy("payment_type").count().toPandas()
@@ -143,6 +145,14 @@ fig.show()
 count_s=df_sp.groupBy("store_and_fwd_flag").count().toPandas()
 fig=px.bar(count_s,x="store_and_fwd_flag", y="count" ,title="strove count" )
 fig.show()
+
+tt=df_sp.select('pickup_longitude', 'pickup_latitude','dropoff_longitude' ,'dropoff_latitude').dropna().limit(10000).toPandas()
+
+kep=KeplerGl()
+kep.add_data(data=tt, name='konum')
+
+
+kep.save_to_html(file_name="konumları_gor.html")
 
 from google.colab import drive
 drive.mount('/content/drive')
