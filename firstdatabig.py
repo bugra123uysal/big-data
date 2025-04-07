@@ -15,11 +15,18 @@ from datetime import time
 import plotly.express as px
 
 from google.colab import files
+!pip install keplergl
 from keplergl import KeplerGl
 
 spark=SparkSession.builder.appName("first big data").getOrCreate()
 
-df_sp=spark.read.csv("/content/yellow_tripdata_2015-01.csv",header=True, inferSchema=True)
+df_sp1501=spark.read.csv("/content/sample_data/yellow_tripdata_2015-01.csv",header=True, inferSchema=True)
+df_sp1601=spark.read.csv("/content/sample_data/yellow_tripdata_2016-01.csv", header=True , inferSchema=True)
+df_sp1602=spark.read.csv("/content/sample_data/yellow_tripdata_2016-02.csv", header=True , inferSchema=True)
+df_sp1603=spark.read.csv("/content/sample_data/yellow_tripdata_2016-03.csv", header=True , inferSchema=True)
+
+df_sp=df_sp1501.union(df_sp1601).union(df_sp1602).union(df_sp1603)
+df_sp.show(5)
 
 df_sp.select([sum(col(c).isNull().cast("int")).alias(c) for c in df_sp.columns]).show()
 
@@ -41,7 +48,7 @@ select.show(5)
 flr=df_sp.filter(df_sp['total_amount']<2  )
 flr.show(5)
 
-bahsıs=df_sp.orderBy(df_sp['tip_amount'], ascending=False)
+bahsıs=df_sp.orderBy(df_sp['tip_amount'], ascending=True)
 bahsıs.show(5)
 
 sıra=df_sp.orderBy(df_sp['tip_amount'], ascending=False)
@@ -62,6 +69,8 @@ gecıs.show(5)
 df_sp=df_sp.filter(df_sp["passenger_count"]> 0 )
 df_sp.show(10)
 
+df_sp.count()
+
 df_sp =df_sp.withColumn("time", split(df_sp["tpep_pickup_datetime"], " ")[1])\
              .withColumn("timee", split(df_sp["tpep_dropoff_datetime"], " ")[1])
 
@@ -76,7 +85,7 @@ df_sp=df_sp.withColumn("fare_per_minute", col("fare_amount") / col("time_differe
 df_sp=df_sp.withColumn("fare_per_km", col("fare_amount") / col("trip_distance"))
 df_sp.show(5)
 
-df_sp=df_sp.toPandas().to_csv("updated_dataset.csv", index=False)
+df_sp=df_sp.toPandas().to_csv("updated_dataset.csv", index=False).limit(10000)
 from google.colab import files
 files.download("updated_dataset.csv")
 
@@ -104,7 +113,7 @@ fig.show()
 
 df_sp=df_sp.withColumn("day_name",
 
-                       when(df_sp.dayofweek == 1, "pazartesi")
+                       when(df_sp.dayofweek == 1, "pazartesı")
                     .when(df_sp.dayofweek == 2 , "salı")
                     .when(df_sp.dayofweek ==  3, "çarşamba")
                     .when(df_sp.dayofweek ==  4, "perşembe")
@@ -112,7 +121,7 @@ df_sp=df_sp.withColumn("day_name",
                     .when(df_sp.dayofweek ==  6, "cumartesi")
                     .when(df_sp.dayofweek ==  7, "pazar")
                     .otherwise("bilinmiyor")
-                    )
+                                         )
 
 df_sp.show(5)
 
@@ -139,17 +148,18 @@ fig.show()
 
 count_p=df_sp.groupBy("passenger_count").count().toPandas()
 
-fig=px.bar(count_p, x="passenger_count", y="count", title="passenger ")
+fig=px.bar(count_p, x="passenger_count", y="count", title="passenger")
 fig.show()
 
 count_s=df_sp.groupBy("store_and_fwd_flag").count().toPandas()
 fig=px.bar(count_s,x="store_and_fwd_flag", y="count" ,title="strove count" )
 fig.show()
 
-tt=df_sp.select('pickup_longitude', 'pickup_latitude','dropoff_longitude' ,'dropoff_latitude').dropna().limit(10000).toPandas()
+tt=df_sp.select('pickup_longitude', 'pickup_latitude','dropoff_longitude' ,'dropoff_latitude').dropna().toPandas()
 
 kep=KeplerGl()
 kep.add_data(data=tt, name='konum')
+
 
 
 kep.save_to_html(file_name="konumları_gor.html")
