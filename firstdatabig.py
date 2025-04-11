@@ -20,10 +20,10 @@ from keplergl import KeplerGl
 
 spark=SparkSession.builder.appName("first big data").getOrCreate()
 
-df_sp1501=spark.read.csv("/content/sample_data/yellow_tripdata_2015-01.csv",header=True, inferSchema=True)
-df_sp1601=spark.read.csv("/content/sample_data/yellow_tripdata_2016-01.csv", header=True , inferSchema=True)
-df_sp1602=spark.read.csv("/content/sample_data/yellow_tripdata_2016-02.csv", header=True , inferSchema=True)
-df_sp1603=spark.read.csv("/content/sample_data/yellow_tripdata_2016-03.csv", header=True , inferSchema=True)
+df_sp1501=spark.read.csv("/content/yellow_tripdata_2015-01.csv", header=True, inferSchema=True)
+df_sp1601=spark.read.csv("/content/yellow_tripdata_2016-01.csv", header=True , inferSchema=True)
+df_sp1602=spark.read.csv("/content/yellow_tripdata_2016-02.csv", header=True , inferSchema=True)
+df_sp1603=spark.read.csv("/content/yellow_tripdata_2016-03.csv", header=True , inferSchema=True)
 
 df_sp=df_sp1501.union(df_sp1601).union(df_sp1602).union(df_sp1603)
 df_sp.show(5)
@@ -71,8 +71,8 @@ df_sp.show(10)
 
 df_sp.count()
 
-df_sp =df_sp.withColumn("time", split(df_sp["tpep_pickup_datetime"], " ")[1])\
-             .withColumn("timee", split(df_sp["tpep_dropoff_datetime"], " ")[1])
+df_sp =df_sp.withColumn("pickup_datetime", split(df_sp["tpep_pickup_datetime"], " ")[1])\
+             .withColumn("dropoff_datetime", split(df_sp["tpep_dropoff_datetime"], " ")[1])
 
 df_sp = df_sp.withColumn("time_different_minute",
                          (unix_timestamp("tpep_dropoff_datetime", "yyyy-MM-dd HH:mm:ss") -
@@ -83,11 +83,12 @@ df_sp.select("tpep_pickup_datetime", "tpep_dropoff_datetime", "time_different_mi
 
 df_sp=df_sp.withColumn("fare_per_minute", col("fare_amount") / col("time_different_minute"))
 df_sp=df_sp.withColumn("fare_per_km", col("fare_amount") / col("trip_distance"))
-df_sp.show(5)
 
-df_sp=df_sp.toPandas().to_csv("updated_dataset.csv", index=False).limit(10000)
-from google.colab import files
-files.download("updated_dataset.csv")
+
+
+
+
+df_sp.show(5)
 
 df_sp=df_sp.withColumn("year", year(df_sp["tpep_pickup_datetime"]))
 df_sp=df_sp.withColumn("month", month(df_sp["tpep_pickup_datetime"]))
@@ -130,6 +131,34 @@ df_sp=df_sp.withColumn("dayofweek_d", dayofweek(df_sp["tpep_dropoff_datetime"]))
 aa=df_sp.groupBy("day_name").count().toPandas()
 fig=px.bar(aa, x="day_name", y="count", title="day_name")
 fig.show()
+
+df_sp=df_sp.withColumn("month_string",
+                         when(col("month") == 1 , "ocak")
+                       .when(col("month")== 2 , "şubat")
+                       .when(col("month") == 3 ,"mart")
+                       .when(col("month") == 4 ,"nisan")
+                       .when(col("month") == 5 , "mayıs")
+                       .when(col("month") == 6 , "haziran")
+                       .when(col("month") == 7 ,"temmuz")
+                       .when(col("month") == 8 , "ağustos")
+                       .when(col("month") == 9 , "eylül")
+                       .when(col("month") == 10, "ekim")
+                       .when(col("month") == 11, "kasım")
+                       .when(col("month") == 12, "aralık")
+                       .otherwise("try agen")
+
+
+                       )
+
+df_sp.show(5)
+
+
+aa=df_sp.groupBy("month_string").count().toPandas()
+bb=px.bar(aa, x="month_string" , y="count")
+bb.show()
+
+aa=df_sp.orderBy(df_sp["month_string"], ascending=False)
+aa.show(5)
 
 df_sp=df_sp.withColumn("year_d", year(df_sp["tpep_dropoff_datetime"]))
 df_sp=df_sp.withColumn("month_d", month(df_sp["tpep_dropoff_datetime"]))
