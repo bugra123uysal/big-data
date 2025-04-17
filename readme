@@ -7,3 +7,183 @@ big-data/
 │
 ├── firstdatabig.py      # Main data pipeline script
 └── README.md            # Project documentation
+
+1. Gerekli Kütüphanelerin Yüklenmesi ve İçe Aktarımı
+
+✅ from pyspark.sql import SparkSession
+✅ from pyspark.sql.functions import col, isnan, when, count
+✅ import pandas as pd
+✅ from pyspark.sql.functions import split, unix_timestamp,when, col, sum ,year, month, dayofweek, hour,date_format ,  mean
+✅ from datetime import time
+✅ import plotly.express as px
+
+✅PySpark: Büyük verilerle çalışmak için.
+✅Pandas: PySpark sonuçlarını kolayca analiz etmek için.
+✅Plotly: Veriyi etkileşimli grafiklerle görselleştirmek için.
+✅KeplerGl: Harita üzerinden görselleştirme yapmak için.
+
+------------------------------------------------------------------------------------------------------------------------
+2. SparkSession Oluşturulması
+
+✅PySpark ile çalışmak için bir Spark oturumu başlatılıyor
+spark=SparkSession.builder.appName("first big data").getOrCreate()
+------------------------------------------------------------------------------------------------------------------------
+3. NYC Taksi Verilerinin Yüklenmesi
+Ocak 2015  , ocak 2016 , şubat 2016 mart 2016  veriler tek bir DataFrame'de birleştiriliyor.
+
+df_sp1501=spark.read.csv("/content/sample_data/yellow_tripdata_2015-01.csv", header=True , inferSchema=True)
+df_sp1601=spark.read.csv("/content/sample_data/yellow_tripdata_2016-01.csv", header=True , inferSchema=True)
+df_sp1602=spark.read.csv("/content/sample_data/yellow_tripdata_2016-02.csv", header=True , inferSchema=True)
+df_sp1603=spark.read.csv("/content/sample_data/yellow_tripdata_2016-03.csv", header=True , inferSchema=True)
+
+df_sp=df_sp1501.union(df_sp1601).union(df_sp1602).union(df_sp1603)
+df_sp.show(5)
+------------------------------------------------------------------------------------------------------------------------
+4 Veriler gösteriliyor, sütunlar ve veri tipleri inceleniyor
+df_sp.show(5)
+df_sp.printSchema()
+df_sp.summary().show()
+
+------------------------------------------------------------------------------------------------------------------------
+5. Eksik Veri Kontrolleri
+
+df_sp.select([sum(col(c).isNull().cast("int")).alias(c) for c in df_sp.columns])
+
+Hangi sütunlarda eksik veri (null) olduğunu bulur.
+------------------------------------------------------------------------------------------------------------------------
+6  ay isimlerini atama 
+
+df_sp=df_sp.withColumn("month_s",
+                         when(col("month") == 1 , "ocak")
+                       .when(col("month")==  2 , "şubat")
+                       .when(col("month") == 3 ,"mart")
+                       .when(col("month") == 4 ,"nisan")
+                       .when(col("month") == 5 , "mayıs")
+                       .when(col("month") == 6 , "haziran")
+                       .when(col("month") == 7 ,"temmuz")
+                       .when(col("month") == 8 , "ağustos")
+                       .when(col("month") == 9 , "eylül")
+                       .when(col("month") == 10, "ekim")
+                       .when(col("month") == 11, "kasım")
+                       .when(col("month") == 12, "aralık")
+                       .otherwise("try agen")
+
+
+                       )
+
+
+------------------------------------------------------------------------------------------------------------------------
+7 Gün isimlerini atama
+
+df_sp=df_sp.withColumn("day_name",
+
+                       when(df_sp.dayofweek == 1, "pazartesı")
+                    .when(df_sp.dayofweek == 2 , "salı")
+                    .when(df_sp.dayofweek ==  3, "çarşamba")
+                    .when(df_sp.dayofweek ==  4, "perşembe")
+                    .when(df_sp.dayofweek ==  5, "cuma")
+                    .when(df_sp.dayofweek ==  6, "cumartesi")
+                    .when(df_sp.dayofweek ==  7, "pazar")
+                    .otherwise("bilinmiyor")
+                                         )
+
+------------------------------------------------------------------------------------------------------------------------
+8 Ödeme türlerini atama 
+
+df_sp=df_sp.withColumn("payment",
+                       when(df_sp.payment_type == 1 , "cash")
+                    .when(df_sp.payment_type == 2 , "credid card")
+                    .otherwise("ı dont know")
+                    )
+------------------------------------------------------------------------------------------------------------------------
+9 bahşiş ve toplam miktarın ortalaması 
+
+df_sp.select(mean("tip_amount")).show(5)
+
+df_sp.select(mean("total_amount")).show(5)
+------------------------------------------------------------------------------------------------------------------------
+10 . Zaman Hesaplamaları ve Yeni Özellikler
+
+df_sp =df_sp.withColumn("pickup_datetime", split(df_sp["tpep_pickup_datetime"], " ")[1])\
+             .withColumn("dropoff_datetime", split(df_sp["tpep_dropoff_datetime"], " ")[1])
+
+df_sp = df_sp.withColumn("time_different_minute",
+                         (unix_timestamp("tpep_dropoff_datetime", "yyyy-MM-dd HH:mm:ss") -
+                          unix_timestamp("tpep_pickup_datetime", "yyyy-MM-dd HH:mm:ss")) / 60)
+
+
+df_sp.select("tpep_pickup_datetime", "tpep_dropoff_datetime", "time_different_minute")
+
+df_sp=df_sp.withColumn("fare_per_minute", col("fare_amount") / col("time_different_minute"))
+df_sp=df_sp.withColumn("fare_per_km", col("fare_amount") / col("trip_distance"))
+
+
+Yolculuk süresi, km başına ücret, dakika başına ücret gibi yeni sütunlar oluşturuluyor.
+
+Tarihlerden yıl, ay, gün, saat bilgileri çıkarılıyor.
+------------------------------------------------------------------------------------------------------------------------
+11 . sorgulamalar 
+
+df_sp.orderBy(col("tip_amount").asc()).select("trip_distance", "fare_amount", "total_amount").show(1) (küçükten büyüğe doğru )
+
+df_sp.orderBy(col("trip_distance").desc()).select("trip_distance", "fare_amount", "total_amount").show(1) (büyükden küçüğe doğru )
+
+df_sp.orderBy(col("total_amount").desc()).select("trip_distance", "total_amount", "tip_amount").show(5) (büyükden küçüğe doğru )
+df_sp.orderBy(col("total_amount").asc()).select("trip_distance", "total_amount", "tip_amount").show(5)  (küçükten büyüğe doğru )
+
+df_sp.groupBy("passenger_count").count().orderBy("count", ascending=False).show()(Büyükten küçüğe )
+
+df_sp.groupBy("passenger_count").count().orderBy("count", ascending=True ).show()(küçükden büyüğe ) 
+
+df_sp.orderBy("passenger_count").count().orderBy("count", ascending=False).show()(Büyükten küçüğe )
+
+df_sp.orderBy("payment_type").count().orderBy("count", ascending=False).show(5)(Büyükten küçüğe )
+
+df_sp=df_sp.orderBy(df_sp['passenger_count'], ascending=False)(Büyükten küçüğe )
+
+
+
+gecıs=df_sp.orderBy(df_sp['tolls_amount'], ascending=False)(Büyükten küçüğe )
+
+bahşiş , yolcu sayısı , ödeme türü , toplam miktat , mesafe küçükden büyüğe , büyükten küçüğe sıralanmış
+------------------------------------------------------------------------------------------------------------------------
+12 görselleştirmeler 
+- bar grafiği ile ayları görselleştirme
+df_sp=px.bar(df_sp.groupBy("mount_s").count().toPandas(), x="mount_s" , y="count")
+
+- bar grafiği ile ödeme tiplerini  görselleştirme
+count_t=df_sp.groupBy("payment_type").count().toPandas()
+
+df_sp=px.bar(count_t,x="payment_type" , y="count", title="payment")
+- bar grafiği ile yolcu sayısını görselleştirme
+count_p=df_sp.groupBy("passenger_count").count().toPandas()
+
+df_sp=px.bar(count_p, x="passenger_count", y="count", title="passenger")
+
+- bar grafiği  görselleştirme
+
+'Y' → veri saklandı ve sonra iletildi
+
+'N' → veri doğrudan iletildi
+
+count_s=df_sp.groupBy("store_and_fwd_flag").count().toPandas()
+df_sp=px.bar(count_s,x="store_and_fwd_flag", y="count" ,title="strove count" )
+
+
+
+HARİTALANDIRMA
+tt=df_sp.select('pickup_longitude', 'pickup_latitude','dropoff_longitude' ,'dropoff_latitude').dropna().toPandas()
+
+kep=KeplerGl()
+kep.add_data(data=tt, name='konum')
+
+------------------------------------------------------------------------------------------------------------------------
+------------------------------------------------------------------------------------------------------------------------
+
+ÖZET
+✅ 4 aylık NYC taksi verisini birleştiriyor
+✅ Veriyi temizliyor ve inceliyor
+✅ Yeni sütunlar ve hesaplamalar ekliyor (süre, ücret/kilometre gibi)
+✅ Zaman, ödeme, yolcu sayısı gibi verileri analiz ediyor
+✅ Grafiklerle veriyi görselleştiriyor
+✅ KeplerGL ile haritada yolculukları çiziyor
